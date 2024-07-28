@@ -34,8 +34,7 @@ async def getUserMessages(interaction: discord.Interaction, member: discord.Memb
         return None
     
     messageContents = []
-
-    for i in range(count):
+    for i in range(min(len(userMessages),count)):
         messageContents.append(userMessages[i].content)
 
     return messageContents
@@ -92,18 +91,25 @@ async def help(interaction: discord.Interaction):
               description="Checks the toxicity level of the current channel based on the num most recent messages"
 )
 async def check_toxicity(interaction: discord.Interaction, num: int):
-    await interaction.response.defer()
     finalMessage = discord.Embed(title="Toxicity", colour=0xFF7CEF)
     if num > 100 or num < 1:
-        await interaction.edit_original_response("Please enter a value between 1 and 100", ephemeral=True)
+        await interaction.response.send_message("Please enter a value between 1 and 100", ephemeral=True)
     else:
+        await interaction.response.defer()
         messages = await getMessages(interaction, num)
         toxicityLevel = await functions.checkToxicity(messages)
-        finalMessage.add_field(
-            name="Result",
-            value=f"`The toxicity value of the channel is {toxicityLevel[0]} out of 100. The main toxicity category is {toxicityLevel[1]}`",
-            inline=True
-        )
+        if toxicityLevel[2]:
+            finalMessage.add_field(
+                name="Result",
+                value=f"`The toxicity value of the channel is {toxicityLevel[0]} out of 100. The main toxicity category is {toxicityLevel[1]}`",
+                inline=True
+            )
+        else:
+            finalMessage.add_field(
+                name="Result",
+                value=f"`The toxicity value of the channel is {toxicityLevel[0]} out of 100. The chat is not toxic.`",
+                inline=True
+            )
 
     numServers = len(client.guilds)
     finalMessage.set_footer(text="I am in " + str(numServers)  + " servers.")
@@ -114,22 +120,29 @@ async def check_toxicity(interaction: discord.Interaction, num: int):
               description="Checks the toxicity level of a user in the current channel"
               )
 async def check_user_toxicity(interaction: discord.Interaction, member: discord.Member, num: int):
-    await interaction.response.defer()
     finalMessage = discord.Embed(title="Toxicity", colour=0xFF7CEF)
     if num > 100 or num < 1:
-        await interaction.edit_original_response("Please enter a value between 1 and 100", ephemeral=True)
+        await interaction.response.send_message("Please enter a value between 1 and 100", ephemeral=True)
 
     else:
+        await interaction.response.defer()
         messages = await getUserMessages(interaction, member, num)
         if messages == None:
-            await interaction.edit_original_response("Not enough recent messages", ephemeral=True)
+            await interaction.response.send_message("Not enough recent messages", ephemeral=True)
 
         toxicityLevel = await functions.checkToxicity(messages)
-        finalMessage.add_field(
-            name="Result",
-            value=f"`The toxicity value of {member} is {toxicityLevel[0]} out of 100. The main toxicity category is {toxicityLevel[1]}`",
-            inline=True
-        )
+        if toxicityLevel[2]:
+            finalMessage.add_field(
+                name="Result",
+                value=f"`The toxicity value of {member} is {toxicityLevel[0]} out of 100. The main toxicity category is {toxicityLevel[1]}`",
+                inline=True
+            )
+        else: 
+            finalMessage.add_field(
+                name="Result",
+                value=f"`The toxicity value of {member} is {toxicityLevel[0]} out of 100. The user in this chat is not toxic.`",
+                inline=True
+            )
     
     numServers = len(client.guilds)
     finalMessage.set_footer(text="I am in " + str(numServers)  + " servers.")
