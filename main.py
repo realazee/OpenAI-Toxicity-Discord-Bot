@@ -8,7 +8,7 @@ import datetime, time
 import json
 
 
-secretFile = open("hackathon week 1/OpenAI-Reddit-Toxicity-Calculator-main/clientsecret.json", "r")
+secretFile = open("clientsecret.json", "r")
 secrets = json.load(secretFile)
 DISCORD_KEY = secrets['DISCORD_KEY']
 
@@ -18,12 +18,26 @@ client = discord.Client(intents=intents)
 tree = app_commands.CommandTree(client)
 
 
-async def getMessages(interaction: discord.Interaction):
-    messages = [message async for message in interaction.channel.history(limit=10)]
+async def getMessages(interaction: discord.Interaction, count: int):
+    messages = [message async for message in interaction.channel.history(limit=count)]
     messageContents = []
     for i in messages:
         messageContents.append(i.content)
         
+    return messageContents
+
+
+async def getUserMessages(interaction: discord.Interaction, member: discord.Member, count: int):
+    messages = [message async for message in interaction.channel.history(limit=1000)]
+    userMessages = [msg for msg in messages if msg.author == member]
+    if len(userMessages) < 1:
+        return None
+    
+    messageContents = []
+
+    for i in range(count):
+        messageContents.append(userMessages[i].content)
+
     return messageContents
 
 
@@ -38,7 +52,6 @@ async def on_ready():
     print("bot is up and running")
 
 
-
 @tree.command(name="invite_bot",
               description="provides an invite link for the bot")
 async def invite(interaction: discord.Interaction):
@@ -49,14 +62,19 @@ async def invite(interaction: discord.Interaction):
 
 
 #shows all commands available from this bot
-@tree.command(name="help")
+@tree.command(name="help",
+              description="A help menu for the Toxicity Calculator Bot")
 async def help(interaction: discord.Interaction):
     helpEmbed = discord.Embed(title="**Commands**",
                               colour=0xFF7CEF)
 
     helpEmbed.add_field(
-        name="Toxicity Bot",
-        value="`/checkToxicity`",
+        name="Toxicity Checker",
+        value="`/check_toxicity [limit]`",
+        inline=True)
+    helpEmbed.add_field(
+        name="User Toxicity Checker",
+        value="`/check_user_toxicity [user] [limit]`",
         inline=True)
     helpEmbed.add_field(name="INVITE LINK", value="`/invite_bot`", inline=True)
     helpEmbed.set_thumbnail(
@@ -70,35 +88,52 @@ async def help(interaction: discord.Interaction):
     await interaction.response.send_message(embed=helpEmbed)
 
 
-@tree.command(name="check_toxicity")
-async def check_toxicity(interaction: discord.Interaction):
+@tree.command(name="check_toxicity",
+              description="Checks the toxicity level of the current channel based on the num most recent messages"
+)
+async def check_toxicity(interaction: discord.Interaction, num: int):
+    await interaction.response.defer()
     finalMessage = discord.Embed(title="Toxicity", colour=0xFF7CEF)
-    
-    messages = await getMessages(interaction)
-    toxicityLevel = await functions.checkToxicity(messages)
-    finalMessage.add_field(
-        name="Result",
-        value=f"`The toxicity value of the channel is {toxicityLevel[0]} out of 100. The main toxicity category is {toxicityLevel[1]}`",
-        inline=True
-    )
-    
+    if num > 100 or num < 1:
+        await interaction.edit_original_response("Please enter a value between 1 and 100", ephemeral=True)
+    else:
+        messages = await getMessages(interaction, num)
+        toxicityLevel = await functions.checkToxicity(messages)
+        finalMessage.add_field(
+            name="Result",
+            value=f"`The toxicity value of the channel is {toxicityLevel[0]} out of 100. The main toxicity category is {toxicityLevel[1]}`",
+            inline=True
+        )
 
     numServers = len(client.guilds)
     finalMessage.set_footer(text="I am in " + str(numServers)  + " servers.")
-    await interaction.response.send_message(embed=finalMessage)
+    await interaction.edit_original_response(embed=finalMessage)
 
 
+@tree.command(name="check_user_toxicity",
+              description="Checks the toxicity level of a user in the current channel"
+              )
+async def check_user_toxicity(interaction: discord.Interaction, member: discord.Member, num: int):
+    await interaction.response.defer()
+    finalMessage = discord.Embed(title="Toxicity", colour=0xFF7CEF)
+    if num > 100 or num < 1:
+        await interaction.edit_original_response("Please enter a value between 1 and 100", ephemeral=True)
 
-# @tree.command(name="filler command")
-# async def getName(interaction: discord.Interaction, filler: str):
-#     await interaction.response.send_message(embed=filler)
+    else:
+        messages = await getUserMessages(interaction, member, num)
+        if messages == None:
+            await interaction.edit_original_response("Not enough recent messages", ephemeral=True)
 
-
-# @tree.command(name="filler command")
-# async def getdaily(interaction: discord.Interaction, hypixelguild: str):
+        toxicityLevel = await functions.checkToxicity(messages)
+        finalMessage.add_field(
+            name="Result",
+            value=f"`The toxicity value of {member} is {toxicityLevel[0]} out of 100. The main toxicity category is {toxicityLevel[1]}`",
+            inline=True
+        )
     
-#     await interaction.edit_original_response(embed=finalText)
-
+    numServers = len(client.guilds)
+    finalMessage.set_footer(text="I am in " + str(numServers)  + " servers.")
+    await interaction.edit_original_response(embed=finalMessage)
 
 
 client.run(DISCORD_KEY)
