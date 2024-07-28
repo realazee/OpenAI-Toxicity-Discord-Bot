@@ -4,7 +4,7 @@ A Discord bot that checks the toxicity of current chat, and outputs a weighted t
 ### Features:
 #### Commands:
 /check_toxicity: checks the toxicity of the current chat, specifying the amount of messages to check for context.<br />
-/check_user: checks the toxicity of the mentioned user in the current chat, specifying the amount of mesages to check for context. 
+/check_user_toxicity: checks the toxicity of the mentioned user in the current chat, specifying the amount of mesages sent by that user to check for context. Due to limits on Discord's API, it can only scan the past 1000 messages sent in the chat by all members. 
 
 ### Instructions to Host
 Create a file clientsecret.json in the repository root, and fill in variables DISCORD_KEY and OPENAI_KEY with the respective client secrets/private keys from the Discord and OpenAI developer portals.<br />
